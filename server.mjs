@@ -1,7 +1,8 @@
 import http from 'node:http';
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, createReadStream } from 'node:fs';
 import { randomUUID, pbkdf2Sync, randomBytes } from 'node:crypto';
 import { URL } from 'node:url';
+import { extname, join } from 'node:path';
 
 const PORT = process.env.PORT || 8787;
 const DB_FILE = './server-db.json';
@@ -9,6 +10,34 @@ const DB_FILE = './server-db.json';
 const defaultDb = { users: [], sessions: {}, rooms: {}, history: [] };
 const db = existsSync(DB_FILE) ? JSON.parse(readFileSync(DB_FILE, 'utf8')) : defaultDb;
 const save = () => writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
+
+const DIST_DIR = './dist';
+const MIME = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon'
+};
+
+const serveStatic = (req, res, pathname) => {
+  const cleanPath = pathname === '/' ? '/index.html' : pathname;
+  const filePath = join(DIST_DIR, cleanPath);
+  const fallback = join(DIST_DIR, 'index.html');
+  const target = existsSync(filePath) ? filePath : fallback;
+  if(!existsSync(target)) {
+    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('Build frontend first: npm run build');
+    return;
+  }
+  const contentType = MIME[extname(target)] || 'application/octet-stream';
+  res.writeHead(200, { 'Content-Type': contentType });
+  createReadStream(target).pipe(res);
+};
 
 const json = (res, code, payload) => {
   res.writeHead(code, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type, Authorization' });
@@ -48,6 +77,10 @@ const ensureStats = (user) => {
 const server = http.createServer(async (req, res) => {
   if(req.method === 'OPTIONS') return json(res, 200, { ok: true });
   const url = new URL(req.url, `http://${req.headers.host}`);
+
+  if(req.method === 'GET' && !url.pathname.startsWith('/api')) {
+    return serveStatic(req, res, url.pathname);
+  }
 
   try {
     if(req.method === 'POST' && url.pathname === '/api/register') {
