@@ -145,6 +145,18 @@ export default function Game() {
   };
   
   const checkOuthouses = (cells) => cells.some(([c, r]) => OUTHOUSES.some(([oc, or]) => oc === c && or === r));
+
+  const getTileImageLayout = (x, y, w, h, rotation) => {
+    const normalizedRotation = ((rotation % 360) + 360) % 360;
+    const isHorizontal = normalizedRotation === 90 || normalizedRotation === 270;
+    if(!isHorizontal) return {x, y, width: w, height: h};
+    return {
+      x: x + (w - h) / 2,
+      y: y + (h - w) / 2,
+      width: h,
+      height: w
+    };
+  };
   
   const resolveVote = () => {
     let yesVotes = 0, noVotes = 0;
@@ -336,7 +348,8 @@ export default function Game() {
                 const x = V[minC], y = H[minR], w = V[maxC + 1] - V[minC], h = H[maxR + 1] - H[minR];
                 const centerX = x + w / 2, centerY = y + h / 2;
                 const adjustedRot = previewMove.rot + 90;
-                return <image x={x} y={y} width={w} height={h} href={IMAGES[dragging.type]} preserveAspectRatio="xMidYMid meet" opacity="0.7" transform={`rotate(${adjustedRot} ${centerX} ${centerY})`}/>;
+                const imageLayout = getTileImageLayout(x, y, w, h, adjustedRot);
+                return <image x={imageLayout.x} y={imageLayout.y} width={imageLayout.width} height={imageLayout.height} href={IMAGES[dragging.type]} preserveAspectRatio="xMidYMid meet" opacity="0.7" transform={`rotate(${adjustedRot} ${centerX} ${centerY})`}/>;
               })()}
               {placedTiles.map((tile, idx) => {
                 const minC = Math.min(...tile.cells.map(([c]) => c));
@@ -346,7 +359,8 @@ export default function Game() {
                 const x = V[minC], y = H[minR], w = V[maxC + 1] - V[minC], h = H[maxR + 1] - H[minR];
                 const centerX = x + w / 2, centerY = y + h / 2;
                 const adjustedRot = tile.rotation + 90;
-                return <image key={`tile-${idx}`} x={x} y={y} width={w} height={h} href={IMAGES[tile.type]} preserveAspectRatio="xMidYMid meet" transform={`rotate(${adjustedRot} ${centerX} ${centerY})`}/>;
+                const imageLayout = getTileImageLayout(x, y, w, h, adjustedRot);
+                return <image key={`tile-${idx}`} x={imageLayout.x} y={imageLayout.y} width={imageLayout.width} height={imageLayout.height} href={IMAGES[tile.type]} preserveAspectRatio="xMidYMid meet" transform={`rotate(${adjustedRot} ${centerX} ${centerY})`}/>;
               })}
               {Object.entries(workers).map(([n,w]) => <image key={n} x={V[w.c]+20} y={H[w.r]+20} width={V[w.c+1]-V[w.c]-40} height={H[w.r+1]-H[w.r]-40} href={IMAGES.worker} preserveAspectRatio="xMidYMid meet"/>)}
             </svg>
